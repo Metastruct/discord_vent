@@ -64,13 +64,13 @@ discordClient.addListener("message", (message) => {
                 }
             }
         } else {
-            discordWebhook.send(message.cleanContent, { username: user.username, avatarURL: `https://robohash.org/${user.username}.jpg`.replace(" ", "_"), disableEveryone: true });
+            discordWebhook.send(message.cleanContent, { username: user.username, avatarURL: `https://robohash.org/${user.username.replace(/\s/g, "_")}.jpg`, disableEveryone: true });
             Object.keys(users).forEach((userid) => {
                 if (users[userid].subscribed === true && message.author.id !== userid) {
                     discordClient.users.get(userid).send({ embed: {
                         author: {
                             name: user.username,
-                            icon_url: `https://robohash.org/${user.username}.jpg`.replace(" ", "_")
+                            icon_url: `https://robohash.org/${user.username.replace(/\s/g, "_")}.jpg`
                         },
                         description: message.cleanContent
                     }});
