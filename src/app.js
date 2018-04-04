@@ -4,28 +4,22 @@ const Discord = require("discord.js");
 const discordClient = new Discord.Client({ fetchAllMembers: true });
 const discordWebhook = new Discord.WebhookClient(config.webhook.id, config.webhook.token);
 
-const sqlite3 = require("sqlite3");
-const database = new sqlite3.Database("storage.db");
-
 const _roboname = require("roboname");
 function roboname() {
     let name = _roboname()
     let taken = false;
     Object.keys(users).forEach((userid) => {
-        if (users[userid].username === name) {
-            taken = true;
-        }
+        if (users[userid].username === name) { taken = true; }
     });
     return taken ? roboname() : name;
 }
 
 let users = {}
 
-database.serialize(() => {
-    database.run("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, username TEXT NOT NULL);");
-    database.run("CREATE TABLE IF NOT EXISTS subscribers (user_id TEXT PRIMARY KEY);");
-    database.each("SELECT * FROM users", (err, row) => { users[row.user_id] = { username: row.username, subscribed: false }; });
-    database.each("SELECT * FROM subscribers", (err, row) => { users[row.user_id].subscribed = true })
+discordClient.addListener("ready", () => {
+    const channel = discordClient.channels.get(config.channel);
+    if (channel === undefined) { console.error("AN UNEXPECTED ERROR OCCURRED: CHANNEL NOT FOUND"); return; }
+    channel.send("`metastruct-vent: new session initialized. (usernames will be different)`");
 });
 
 discordClient.addListener("message", (message) => {
@@ -43,7 +37,6 @@ discordClient.addListener("message", (message) => {
 
         if (guildMember.roles.has(config.developerRole) === false) { message.channel.send("`Sorry, but you are not a developer. Please report this to guurgle#2976. (Error #4)`"); return; }
 
-
         let user = users[message.author.id];
         if (user === undefined) {
             users[message.author.id] = {
@@ -51,32 +44,21 @@ discordClient.addListener("message", (message) => {
                 subscribed: false
             }
             user = users[message.author.id];
-            database.run("INSERT INTO users VALUES ($user_id, $username);", { $user_id: message.author.id, $username: user.username }, (err) => {
-                if (err !== null) { message.channel.send("`Sorry, but an unexpected error occured. Please report this to guurgle#2976. (Error #5)`");  return; }
-            });
         }
 
         const command = message.cleanContent.match(/^\.([^\s]+)\s?(.+)?/);
         if (command !== null) {
             if (command[1] === "subscribe") {
                 if (users[message.author.id] && users[message.author.id].subscribed !== true) {
-                    database.run("INSERT INTO subscribers VALUES ($user_id);", { $user_id: message.author.id }, (err) => {
-                        if (err !== null) { message.channel.send("`Sorry, but an unexpected error occured. Please report this to guurgle#2976. (Error #5)`");  return; }
-
-                        users[message.author.id].subscribed = true;
-                        message.channel.send("`You are now subscribed to metastruct-vent. Use .unsubscribe, if you don't want to receive messages anymore.`");
-                    });
+                    users[message.author.id].subscribed = true;
+                    message.channel.send("`You are now subscribed to metastruct-vent. Use .unsubscribe, if you don't want to receive messages anymore.`");
                 } else {
                     message.channel.send("`You are already subscribed to metastruct-vent. Use .unsubscribe, if you don't want to receive messages anymore.`");
                 }
             } else if (command[1] === "unsubscribe") {
                 if (users[message.author.id] && users[message.author.id].subscribed === true) {
-                    database.run("DELETE FROM subscribers WHERE user_id = $user_id;", { $user_id: message.author.id }, (err) => {
-                        if (err !== null) { message.channel.send("`Sorry, but an unexpected error occured. Please report this to guurgle#2976. (Error #5)`");  return; }
-
-                        users[message.author.id].subscribed = false;
-                        message.channel.send("`You are no longer subscribed to metastruct-vent. Use .subscribe, if you want to receive messages again.`");
-                    });
+                    users[message.author.id].subscribed = false;
+                    message.channel.send("`You are no longer subscribed to metastruct-vent. Use .subscribe, if you want to receive messages again.`");
                 } else {
                     message.channel.send("`You are not subscribed to metastruct-vent. Use .subscribe, if you want to receive messages.`");
                 }
